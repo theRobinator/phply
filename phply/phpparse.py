@@ -10,6 +10,8 @@ import phplex
 import phpast as ast
 import ply.yacc as yacc
 
+current_filename = "<string>"
+
 # Get the token map
 tokens = phplex.tokens
 
@@ -594,6 +596,7 @@ def p_parameter(p):
     '''parameter : VARIABLE
                  | class_name VARIABLE
                  | AND VARIABLE
+                 | ARRAY VARIABLE
                  | class_name AND VARIABLE
                  | VARIABLE EQUALS static_scalar
                  | class_name VARIABLE EQUALS static_scalar
@@ -780,8 +783,7 @@ def p_variable_property(p):
     p[0] = (p[2], p[3])
 
 def p_base_variable(p):
-    '''base_variable : simple_indirect_reference
-                     | static_member'''
+    '''base_variable : simple_indirect_reference'''
     p[0] = p[1]
 
 def p_simple_indirect_reference(p):
@@ -793,8 +795,8 @@ def p_simple_indirect_reference(p):
         p[0] = p[1]
 
 def p_static_member(p):
-    '''static_member : class_name DOUBLE_COLON variable_without_objects
-                     | variable_class_name DOUBLE_COLON variable_without_objects'''
+    '''static_member : class_name DOUBLE_COLON VARIABLE
+                     | variable_class_name DOUBLE_COLON VARIABLE'''
     p[0] = ast.StaticProperty(p[1], p[3], lineno=p.lineno(2))
 
 def p_variable_class_name(p):
@@ -802,7 +804,7 @@ def p_variable_class_name(p):
     p[0] = p[1]
 
 def p_reference_variable_array_offset(p):
-    'reference_variable : reference_variable LBRACKET dim_offset RBRACKET'
+    '''reference_variable : reference_variable LBRACKET dim_offset RBRACKET'''
     p[0] = ast.ArrayOffset(p[1], p[3], lineno=p.lineno(2))
 
 def p_reference_variable_string_offset(p):
@@ -810,7 +812,8 @@ def p_reference_variable_string_offset(p):
     p[0] = ast.StringOffset(p[1], p[3], lineno=p.lineno(2))
 
 def p_reference_variable_compound_variable(p):
-    'reference_variable : compound_variable'
+    '''reference_variable : compound_variable
+                          | static_member '''
     p[0] = p[1]
 
 def p_compound_variable(p):
@@ -1308,9 +1311,9 @@ def p_empty(p):
 # Error rule for syntax errors
 def p_error(t):
     if t:
-        raise SyntaxError('invalid syntax', (None, t.lineno, None, t.value))
+        raise SyntaxError('invalid syntax', (current_filename, t.lineno, None, t.value))
     else:
-        raise SyntaxError('unexpected EOF while parsing', (None, None, None, None))
+        raise SyntaxError('unexpected EOF while parsing', (current_filename, None, None, None))
 
 # Build the grammar
 parser = yacc.yacc()

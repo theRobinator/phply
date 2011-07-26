@@ -171,6 +171,10 @@ def resolve_magic_constants(nodes):
                 if current.get('namespace'):
                     node.value = '%s\\%s' % (current.get('namespace'),
                                              node.value)
+
+            elif node.name == "__FILE__":
+                node.value = "todo: filename"
+
     for node in nodes:
         if isinstance(node, Node):
             node.accept(visitor)
