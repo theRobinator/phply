@@ -5,7 +5,13 @@ import pprint
 import readline
 import traceback
 import os
-import collections
+try:
+    import collections
+    collections.OrderedDict
+except:
+    import ordereddict as collections
+
+sys.path.insert(0, "/home/phunt/phpphp/phply")
 
 from phply import pythonast, phplex
 from phply import phpparse
@@ -25,6 +31,14 @@ class PHPArray(collections.OrderedDict):
 class _GlobalReturn(Exception):
     def __init__(self, value=None):
         self.value = value
+
+class ReflectionExtension(object):
+    def __init__(self, name):
+        self.name = name
+    def getVersion(self):
+        return "1.3.9"
+
+PHP_VERSION_ID = 50300
 
 class PHPPHPi(object):
     def __init__(self, script_name):
@@ -95,7 +109,11 @@ class PHPPHPi(object):
              "define": self.define,
              "all_vars": self.all_vars,
              "PHPArray": PHPArray,
-             "array_pop": self.array_pop}
+             "array_pop": self.array_pop,
+             "_INSTANCEOF": isinstance,
+             "_ENV": os.environ.copy(),
+             "ReflectionExtension": ReflectionExtension,
+             "PHP_VERSION_ID": PHP_VERSION_ID}
 
         for function in rpc.get_defined_functions()["internal"]:
             if function not in g:
@@ -118,12 +136,12 @@ class PHPPHPi(object):
             stmt = pythonast.to_stmt(pythonast.PHP2Python().from_phpast(node))
             body.append(stmt)
         code = ast.Module(body)
-        #self.src_dump(code)
+        #self.ast_dump(code)
         try:
             return eval(compile(code, filename, mode='exec'), self.globals)
-
         except _GlobalReturn, g:
             return g.value
+        # TODO: strip non-php files from traceback
 
     def parse_string(self, s, filename):
         lexer = phplex.lexer

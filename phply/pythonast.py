@@ -341,13 +341,23 @@ class PHP2Python(object):
                 return py.Compare(self.from_phpast(node.left), [op],
                                   [self.from_phpast(node.right)],
                                   **pos(node))
-            op = binary_ops.get(node.op)
-            assert op is not None, "unknown binary operator: '%s'" % node.op
-            op = op(**pos(node))
-            return py.BinOp(self.from_phpast(node.left),
-                            op,
-                            self.from_phpast(node.right),
-                            **pos(node))
+            if node.op == "instanceof":
+                # TODO: we should probably use a string comparison here, since
+                # PHP doesn't care if the right hand side actually exists
+                return py.Call(py.Name("_INSTANCEOF",
+                                       py.Load(**pos(node)),
+                                       **pos(node)),
+                               [self.from_phpast(node.left),
+                                self.from_phpast(node.right)],
+                               [], None, None, **pos(node))
+            else:
+                op = binary_ops.get(node.op)
+                assert op is not None, "unknown binary operator: '%s'" % node.op
+                op = op(**pos(node))
+                return py.BinOp(self.from_phpast(node.left),
+                                op,
+                                self.from_phpast(node.right),
+                                **pos(node))
 
         if isinstance(node, php.TernaryOp):
             return py.IfExp(self.from_phpast(node.expr),
@@ -368,11 +378,19 @@ class PHP2Python(object):
                 for else_ in map(self.from_phpast, deblock(node.else_.node)):
                     orelse.append(to_stmt(else_))
             for elseif in reversed(node.elseifs):
+                elseifbody = map(to_stmt, map(self.from_phpast, deblock(elseif.node)))
+                if len(elseifbody) == 0:
+                    elseifbody = [py.Pass(**pos(elseif))]
+                # TODO: handle assignment in if
                 orelse = [py.If(self.from_phpast(elseif.expr),
-                                map(to_stmt, map(self.from_phpast, deblock(elseif.node))),
+                                elseifbody,
                                 orelse, **pos(node))]
+            body = map(to_stmt, map(self.from_phpast, deblock(node.node)))
+            if len(body) == 0:
+                body = [py.Pass(**pos(node))]
+            # TODO: handle assignment in if
             return py.If(self.from_phpast(node.expr),
-                         map(to_stmt, map(self.from_phpast, deblock(node.node))),
+                         body,
                          orelse, **pos(node))
 
         if isinstance(node, php.For):
