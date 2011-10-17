@@ -85,6 +85,7 @@ tokens = reserved + unparsed + (
     'LNUMBER', 'DNUMBER', 'NUM_STRING',
     'CONSTANT_ENCAPSED_STRING', 'ENCAPSED_AND_WHITESPACE', 'QUOTE',
     'DOLLAR_OPEN_CURLY_BRACES', 'STRING_VARNAME', 'CURLY_OPEN',
+    'BACKTICKS',
 
     # Heredocs
     'START_HEREDOC', 'END_HEREDOC',
@@ -252,6 +253,11 @@ def t_php_STRING(t):
 # Variable
 def t_php_VARIABLE(t):
     r'\$[A-Za-z_][\w_]*'
+    return t
+
+def t_php_BACKTICKS(t):
+    r'`([^`]|\\`)*`'
+    t.lexer.lineno += t.value.count("\n")
     return t
 
 # Floating literal

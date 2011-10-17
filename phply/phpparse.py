@@ -1105,6 +1105,7 @@ def p_scalar(p):
     '''scalar : class_constant
               | common_scalar
               | QUOTE encaps_list QUOTE
+              | BACKTICKS
               | START_HEREDOC encaps_list END_HEREDOC'''
     if len(p) == 4:
         p[0] = p[2]
