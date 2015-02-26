@@ -118,7 +118,7 @@ def p_constant_declarations(p):
         p[0] = [p[1]]
 
 def p_constant_declaration(p):
-    'constant_declaration : STRING EQUALS static_scalar'
+    'constant_declaration : STRING EQUALS static_scalar_or_constant'
     p[0] = ast.ConstantDeclaration(p[1], p[3], lineno=p.lineno(1))
 
 def p_inner_statement_list(p):
@@ -405,7 +405,7 @@ def p_static_var_list(p):
         p[0] = [p[1]]
 
 def p_static_var(p):
-    '''static_var : VARIABLE EQUALS static_scalar
+    '''static_var : VARIABLE EQUALS static_scalar_or_constant
                   | VARIABLE'''
     if len(p) == 4:
         p[0] = ast.StaticVariable(p[1], p[3], lineno=p.lineno(1))
@@ -497,8 +497,8 @@ def p_class_statement(p):
         p[0] = ast.ClassConstants(p[1], lineno=p.lineno(2))
 
 def p_class_variable_declaration_initial(p):
-    '''class_variable_declaration : class_variable_declaration COMMA VARIABLE EQUALS static_scalar
-                                  | VARIABLE EQUALS static_scalar'''
+    '''class_variable_declaration : class_variable_declaration COMMA VARIABLE EQUALS static_scalar_or_constant
+                                  | VARIABLE EQUALS static_scalar_or_constant'''
     if len(p) == 6:
         p[0] = p[1] + [ast.ClassVariable(p[3], p[5], lineno=p.lineno(2))]
     else:
@@ -513,8 +513,8 @@ def p_class_variable_declaration_no_initial(p):
         p[0] = [ast.ClassVariable(p[1], None, lineno=p.lineno(1))]
 
 def p_class_constant_declaration(p):
-    '''class_constant_declaration : class_constant_declaration COMMA STRING EQUALS static_scalar
-                                  | CONST STRING EQUALS static_scalar'''
+    '''class_constant_declaration : class_constant_declaration COMMA STRING EQUALS static_scalar_or_constant
+                                  | CONST STRING EQUALS static_scalar_or_constant'''
     if len(p) == 6:
         p[0] = p[1] + [ast.ClassConstant(p[3], p[5], lineno=p.lineno(2))]
     else:
@@ -597,18 +597,21 @@ def p_parameter(p):
                  | class_name VARIABLE
                  | AND VARIABLE
                  | ARRAY VARIABLE
+                 | ARRAY AND VARIABLE
                  | class_name AND VARIABLE
-                 | VARIABLE EQUALS static_scalar
-                 | class_name VARIABLE EQUALS static_scalar
-                 | AND VARIABLE EQUALS static_scalar
-                 | class_name AND VARIABLE EQUALS static_scalar'''
+                 | VARIABLE EQUALS static_scalar_or_constant
+                 | class_name VARIABLE EQUALS static_scalar_or_constant
+                 | AND VARIABLE EQUALS static_scalar_or_constant
+                 | class_name AND VARIABLE EQUALS static_scalar_or_constant
+                 | ARRAY VARIABLE EQUALS static_scalar_or_constant
+                 | ARRAY AND VARIABLE EQUALS static_scalar_or_constant'''
     if len(p) == 2: # VARIABLE
         p[0] = ast.FormalParameter(p[1], None, False, None, lineno=p.lineno(1))
     elif len(p) == 3 and p[1] == '&': # AND VARIABLE
         p[0] = ast.FormalParameter(p[2], None, True, None, lineno=p.lineno(1))
     elif len(p) == 3 and p[1] != '&': # STRING VARIABLE 
         p[0] = ast.FormalParameter(p[2], None, False, p[1], lineno=p.lineno(1))
-    elif len(p) == 4 and p[2] != '&': # VARIABLE EQUALS static_scalar 
+    elif len(p) == 4 and p[2] != '&': # VARIABLE EQUALS static_scalar
         p[0] = ast.FormalParameter(p[1], p[3], False, None, lineno=p.lineno(1))
     elif len(p) == 4 and p[2] == '&': # STRING AND VARIABLE
         p[0] = ast.FormalParameter(p[3], None, True, p[1], lineno=p.lineno(1))
@@ -1006,8 +1009,12 @@ def p_expr_unary_op(p):
     p[0] = ast.UnaryOp(p[1], p[2], lineno=p.lineno(1))
 
 def p_expr_ternary_op(p):
-    'expr : expr QUESTION expr COLON expr'
-    p[0] = ast.TernaryOp(p[1], p[3], p[5], lineno=p.lineno(2))
+    '''expr : expr QUESTION expr COLON expr
+            | expr QUESTION COLON expr'''
+    if len(p) == 6:
+        p[0] = ast.TernaryOp(p[1], p[3], p[5], lineno=p.lineno(2))
+    else:
+        p[0] = ast.TernaryOp(p[1], None, p[4], lineno=p.lineno(2))
 
 def p_expr_pre_incdec(p):
     '''expr : INC variable
@@ -1202,6 +1209,11 @@ def p_beginquote_quote(p):
             exit(1)
         p[0] = p[2]
 
+def p_static_scalar_or_constant(p):
+    '''static_scalar_or_constant : static_scalar
+                                 | class_constant'''
+    p[0] = p[1]
+
 def p_static_scalar(p):
     '''static_scalar : common_scalar
                      | BEGINQUOTE QUOTE
@@ -1242,16 +1254,16 @@ def p_static_array_pair_list(p):
         p[0] = p[1]
 
 def p_static_non_empty_array_pair_list_item(p):
-    '''static_non_empty_array_pair_list : static_non_empty_array_pair_list COMMA static_scalar
-                                        | static_scalar'''
+    '''static_non_empty_array_pair_list : static_non_empty_array_pair_list COMMA static_scalar_or_constant
+                                        | static_scalar_or_constant'''
     if len(p) == 4:
         p[0] = p[1] + [ast.ArrayElement(None, p[3], False, lineno=p.lineno(2))]
     else:
         p[0] = [ast.ArrayElement(None, p[1], False, lineno=p.lineno(1))]
 
 def p_static_non_empty_array_pair_list_pair(p):
-    '''static_non_empty_array_pair_list : static_non_empty_array_pair_list COMMA static_scalar DOUBLE_ARROW static_scalar
-                                        | static_scalar DOUBLE_ARROW static_scalar'''
+    '''static_non_empty_array_pair_list : static_non_empty_array_pair_list COMMA static_scalar_or_constant DOUBLE_ARROW static_scalar_or_constant
+                                        | static_scalar_or_constant DOUBLE_ARROW static_scalar_or_constant'''
     if len(p) == 6:
         p[0] = p[1] + [ast.ArrayElement(p[3], p[5], False, lineno=p.lineno(2))]
     else:
@@ -1344,24 +1356,25 @@ if __name__ == '__main__':
     string=''
     lexer = phplex.lexer
     while True:
-       try:
+        try:
            s += raw_input()
-       except EOFError:
-           try:
-               lexer.lineno = 1
-               result = parser.parse(string, lexer=lexer)
-           except SyntaxError, e:
+        except EOFError:
+            try:
+                lexer.lineno = 1
+                result = parser.parse(string, lexer=lexer)
+            except SyntaxError, e:
                if e.lineno is not None:
                    print e, 'near', repr(e.text)
                    s = ''
                continue
-           if result:
-               for item in result:
-                   if hasattr(item, 'generic'):
-                       item = item.generic()
-                   pprint.pprint(item)
-           break
-       if not s: continue
-       s += '\n'
-       string+=s
-       s = ''
+            if result:
+                for item in result:
+                    if hasattr(item, 'generic'):
+                        item = item.generic()
+                    pprint.pprint(item)
+            break
+
+        if not s: continue
+        s += '\n'
+        string+=s
+        s = ''
