@@ -1107,7 +1107,8 @@ def p_expr_group(p):
 def p_scalar(p):
     '''scalar : class_constant
               | common_scalar
-              | QUOTE encaps_list QUOTE
+              | BEGINQUOTE encaps_list QUOTE
+              | BACKTICKS
               | START_HEREDOC encaps_list END_HEREDOC'''
     if len(p) == 4:
         p[0] = p[2]
@@ -1148,8 +1149,15 @@ def p_common_scalar_dnumber(p):
     p[0] = float(p[1])
 
 def p_common_scalar_string(p):
-    'common_scalar : CONSTANT_ENCAPSED_STRING'
-    p[0] = p[1][1:-1].replace("\\'", "'").replace('\\\\', '\\')
+    '''common_scalar : CONSTANT_ENCAPSED_STRING
+                     | STRING CONSTANT_ENCAPSED_STRING'''
+    if len(p) == 2:
+        p[0] = p[1][1:-1].replace("\\'", "'").replace('\\\\', '\\')
+    else:
+        if p[1] != 'b' and p[1] != 'r':
+            print("[DIRTY ERROR HANDLER]: SYNTAX ERROR, IDENTIFIER '"+p[1]+"' BEFORE STRING")
+            exit(1)
+        p[0] = p[2][1:-1].replace("\\'", "'").replace('\\\\', '\\')
 
 def p_common_scalar_magic_line(p):
     'common_scalar : LINE'
@@ -1183,10 +1191,21 @@ def p_common_scalar_magic_ns(p):
     'common_scalar : NS_C'
     p[0] = ast.MagicConstant(p[1].upper(), None, lineno=p.lineno(1))
 
+def p_beginquote_quote(p):
+    '''BEGINQUOTE : QUOTE
+                  | STRING QUOTE'''
+    if len(p) == 2:
+        p[0] = p[1]
+    else:
+        if p[1] != 'b' and p[1] != 'r':
+            print("[DIRTY ERROR HANDLER]: SYNTAX ERROR, IDENTIFIER '"+p[1]+"' BEFORE STRING")
+            exit(1)
+        p[0] = p[2]
+
 def p_static_scalar(p):
     '''static_scalar : common_scalar
-                     | QUOTE QUOTE
-                     | QUOTE ENCAPSED_AND_WHITESPACE QUOTE'''
+                     | BEGINQUOTE QUOTE
+                     | BEGINQUOTE ENCAPSED_AND_WHITESPACE QUOTE'''
     if len(p) == 2:
         p[0] = p[1]
     elif len(p) == 3:
@@ -1322,31 +1341,27 @@ if __name__ == '__main__':
     import readline
     import pprint
     s = ''
+    string=''
     lexer = phplex.lexer
     while True:
        try:
-           if s:
-               prompt = '     '
-           else:
-               prompt = lexer.current_state()
-               if prompt == 'INITIAL': prompt = 'html'
-               prompt += '> '
-           s += raw_input(prompt)
+           s += raw_input()
        except EOFError:
+           try:
+               lexer.lineno = 1
+               result = parser.parse(string, lexer=lexer)
+           except SyntaxError, e:
+               if e.lineno is not None:
+                   print e, 'near', repr(e.text)
+                   s = ''
+               continue
+           if result:
+               for item in result:
+                   if hasattr(item, 'generic'):
+                       item = item.generic()
+                   pprint.pprint(item)
            break
        if not s: continue
        s += '\n'
-       try:
-           lexer.lineno = 1
-           result = parser.parse(s, lexer=lexer)
-       except SyntaxError, e:
-           if e.lineno is not None:
-               print e, 'near', repr(e.text)
-               s = ''
-           continue
-       if result:
-           for item in result:
-               if hasattr(item, 'generic'):
-                   item = item.generic()
-               pprint.pprint(item)
+       string+=s
        s = ''

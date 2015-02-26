@@ -85,6 +85,7 @@ tokens = reserved + unparsed + (
     'LNUMBER', 'DNUMBER', 'NUM_STRING',
     'CONSTANT_ENCAPSED_STRING', 'ENCAPSED_AND_WHITESPACE', 'QUOTE',
     'DOLLAR_OPEN_CURLY_BRACES', 'STRING_VARNAME', 'CURLY_OPEN',
+    'BACKTICKS',
 
     # Heredocs
     'START_HEREDOC', 'END_HEREDOC',
@@ -186,7 +187,7 @@ t_php_BOOL_CAST            = r'\([ \t]*[Bb][Oo][Oo][Ll]([Ee][Aa][Nn])?[ \t]*\)'
 t_php_DOUBLE_CAST          = r'\([ \t]*([Rr][Ee][Aa][Ll]|[Dd][Oo][Uu][Bb][Ll][Ee]|[Ff][Ll][Oo][Aa][Tt])[ \t]*\)'
 t_php_INT_CAST             = r'\([ \t]*[Ii][Nn][Tt]([Ee][Gg][Ee][Rr])?[ \t]*\)'
 t_php_OBJECT_CAST          = r'\([ \t]*[Oo][Bb][Jj][Ee][Cc][Tt][ \t]*\)'
-t_php_STRING_CAST          = r'\([ \t]*[Ss][Tt][Rr][Ii][Nn][Gg][ \t]*\)'
+t_php_STRING_CAST          = r'\([ \t]*([Ss][Tt][Rr][Ii][Nn][Gg]|[Bb][Ii][Nn][Aa][Rr][Yy])[ \t]*\)'
 t_php_UNSET_CAST           = r'\([ \t]*[Uu][Nn][Ss][Ee][Tt][ \t]*\)'
 
 # Comments
@@ -254,6 +255,11 @@ def t_php_VARIABLE(t):
     r'\$[A-Za-z_][\w_]*'
     return t
 
+def t_php_BACKTICKS(t):
+    r'`([^`]|\\`)*`'
+    t.lexer.lineno += t.value.count("\n")
+    return t
+
 # Floating literal
 def t_php_DNUMBER(t):
     r'(\d*\.\d+|\d+\.\d*)([Ee][+-]?\d+)? | (\d+[Ee][+-]?\d+)'
@@ -266,7 +272,7 @@ def t_php_LNUMBER(t):
 
 # String literal
 def t_php_CONSTANT_ENCAPSED_STRING(t):
-    r"'([^\\']|\\(.|\n))*'"
+    r"[@rb]?'([^\\']|\\(.|\n))*'"
     t.lexer.lineno += t.value.count("\n")
     return t
 
